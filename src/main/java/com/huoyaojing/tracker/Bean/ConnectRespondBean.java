@@ -8,10 +8,11 @@ public class ConnectRespondBean  extends BeanBase{
     public  long  connection_id;
 
     @Override
-    protected boolean initData(Buffer buff){
+    public Buffer getBuff(){
+        Buffer buff = Buffer.buffer();
         buff.setBytes(buff.length(), intToByte4(action));
         buff.setBytes(buff.length(), intToByte4(transaction_id));
         buff.setBytes(buff.length(), longToByte8(connection_id));
-        return true;
+        return buff;
     }
 }
