@@ -22,6 +22,8 @@ repositories {
 }
 
 dependencies {
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.11.1'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.1'
     compile group: 'org.ini4j', name: 'ini4j', version: '0.5.4'
     compile 'io.vertx:vertx-jdbc-client:3.5.4'
     compile  'org.xerial:sqlite-jdbc:3.25.2'

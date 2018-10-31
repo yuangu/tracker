@@ -1,12 +1,18 @@
 package com.huoyaojing.tracker.tracker;
 
 import com.huoyaojing.tracker.Bean.*;
+import com.huoyaojing.tracker.Utils.IpUtils;
 import com.huoyaojing.tracker.config.Config;
 import com.huoyaojing.tracker.db.SqliteDB;
+import com.huoyaojing.tracker.verticle.ServerVerticle;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.datagram.DatagramSocket;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.net.SocketAddress;
 
 import java.util.ArrayList;
@@ -16,7 +22,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class UDPTracker {
-
+    Logger loger = LoggerFactory.getLogger(UDPTracker.class);
     private long mConnectionIdIndex = 0;
     private HashMap<Long, SocketAddress> mConnectList = new HashMap<Long, SocketAddress>();
     private HashMap<Long, List<Long>> mRmConnect = new HashMap<Long, List<Long>>();
@@ -41,7 +47,6 @@ public class UDPTracker {
         });
     }
 
-
     public void onConnect(DatagramSocket socket, ConnectRequestBean requestBean, SocketAddress sender) {
         ConnectRespondBean respondBean = new ConnectRespondBean();
         respondBean.action = requestBean.action;
@@ -50,10 +55,14 @@ public class UDPTracker {
         Buffer buffer = respondBean.getBuff();
         updateConnectId(respondBean.connection_id);
         socket.send(buffer, sender.port(), sender.host(), asyncResult -> {
-            System.out.println("Send succeeded? " + asyncResult.succeeded());
+            if (asyncResult.succeeded())
+            {
+                loger.info("respond connect  succeeded:(" + String.valueOf(respondBean.connection_id) + ")"+  sender.host() + ":" + String.valueOf(sender.port()));
+            }else
+            {
+                loger.info("respond connect failed:" + sender.host() + ":" + String.valueOf(sender.port()));
+            }
         });
-
-
     }
 
     public void onAnnounce(DatagramSocket socket, AnnounceRequestBean requestBean, SocketAddress sender) {
@@ -61,6 +70,10 @@ public class UDPTracker {
         if (!verifyConnectionId(requestBean.connection_id, sender)) {
             sendError(socket,
                     requestBean.transaction_id, "Please send connect request", sender);
+
+
+            loger.info("no has connect ID with announce: "+  sender.host() + ":" + String.valueOf(sender.port()));
+
             return;
         }
         updateConnectId(requestBean.connection_id);
@@ -70,8 +83,25 @@ public class UDPTracker {
         mDb.updatePeer(requestBean.peer_id, requestBean.info_hash,
                 requestBean.IP_address, requestBean.port, requestBean.downloaded,
                 requestBean.left, requestBean.uploaded, requestBean.event, res -> {
+                    loger.info(
+                            "\n=====================================================" +
+                                    "\npeer:" +
+                                    "\npeer_id:" + String.valueOf(requestBean.peer_id) +
+                                    "\ninfo_hash:" + String.valueOf(requestBean.info_hash) +
+                                    "\nIP_address:" + IpUtils.longtoipV4(requestBean.IP_address) +
+                                    "\nport:" + String.valueOf(requestBean.port) +
+                                    "\ndownloaded:" + String.valueOf(requestBean.downloaded) +
+                                    "\nleft:" + String.valueOf(requestBean.left) +
+                                    "\nuploaded:" + String.valueOf(requestBean.uploaded) +
+                                    "\nevent:" + String.valueOf(requestBean.event) +
+                                    "====================================================="
+                    );
+
                     if (res.succeeded()) {
-                        System.out.println("update perr");
+                        loger.info("updatePeer  succeeded:(" + String.valueOf(requestBean.connection_id) + ")"+  sender.host() + ":" + String.valueOf(sender.port()));
+                    }else
+                    {
+                        loger.info("updatePeer  succeeded:(" + String.valueOf(requestBean.connection_id) + ")"+  sender.host() + ":" + String.valueOf(sender.port()));
                     }
 
                 }
@@ -85,7 +115,13 @@ public class UDPTracker {
         mDb.getTorrentInfo(requestBean.info_hash, res -> {
             if (res.failed()) {
                 socket.send(respondBean.getBuff(), sender.port(), sender.host(), asyncResult -> {
-                    System.out.println("Send succeeded? " + asyncResult.succeeded());
+                    if (asyncResult.succeeded())
+                    {
+                        loger.info("respond announce  succeeded:(" + String.valueOf(respondBean.connection_id) + ")"+  sender.host() + ":" + String.valueOf(sender.port()));
+                    }else
+                    {
+                        loger.info("respond announce failed:" + sender.host() + ":" + String.valueOf(sender.port()));
+                    }
                 });
                 return;
             }
@@ -106,7 +142,13 @@ public class UDPTracker {
             //stop 3
             if (event == 3 || num == 0) {
                 socket.send(respondBean.getBuff(), sender.port(), sender.host(), asyncResult -> {
-                    System.out.println("Send succeeded? " + asyncResult.succeeded());
+                    if (asyncResult.succeeded())
+                    {
+                        loger.info("respond announce  succeeded:(" + String.valueOf(respondBean.connection_id) + ")"+  sender.host() + ":" + String.valueOf(sender.port()));
+                    }else
+                    {
+                        loger.info("respond announce failed:" + sender.host() + ":" + String.valueOf(sender.port()));
+                    }
                 });
                 return;
             }
@@ -123,18 +165,39 @@ public class UDPTracker {
                     }
                 }
                 socket.send(respondBean.getBuff(), sender.port(), sender.host(), asyncResult -> {
-                    System.out.println("Send succeeded? " + asyncResult.succeeded());
+                    if (asyncResult.succeeded())
+                    {
+                        loger.info("respond announce  succeeded:(" + String.valueOf(respondBean.connection_id) + ")"+  sender.host() + ":" + String.valueOf(sender.port()));
+                    }else
+                    {
+                        loger.info("respond announce failed:" + sender.host() + ":" + String.valueOf(sender.port()));
+                    }
                 });
             });
         });
     }
 
     public void onScrape(DatagramSocket socket, ScrapeRequestBean requestBean, SocketAddress sender) {
+        //验证connect不成功，直接断开
+        if (!verifyConnectionId(requestBean.connection_id, sender)) {
+            sendError(socket,
+                    requestBean.transaction_id, "Please send connect request", sender);
+
+            loger.info("no has connect ID with scrape: "+  sender.host() + ":" + String.valueOf(sender.port()));
+            return;
+        }
+
         ScrapeRespondBean respondBean = new ScrapeRespondBean();
         updateConnectId(respondBean.connection_id);
         if (requestBean.hashIdList.size() == 0) {
             socket.send(respondBean.getBuff(), sender.port(), sender.host(), asyncResult -> {
-                System.out.println("Send succeeded? " + asyncResult.succeeded());
+                if (asyncResult.succeeded())
+                {
+                    loger.info("respond announce  succeeded:(" + String.valueOf(respondBean.connection_id) + ")"+  sender.host() + ":" + String.valueOf(sender.port()));
+                }else
+                {
+                    loger.info("respond announce failed:" + sender.host() + ":" + String.valueOf(sender.port()));
+                }
             });
             return;
         }
@@ -158,7 +221,13 @@ public class UDPTracker {
 
                 if (total.get() == requestBean.hashIdList.size()) {
                     socket.send(respondBean.getBuff(), sender.port(), sender.host(), asyncResult -> {
-                        System.out.println("Send succeeded? " + asyncResult.succeeded());
+                        if (asyncResult.succeeded())
+                        {
+                            loger.info("respond announce  succeeded:(" + String.valueOf(respondBean.connection_id) + ")"+  sender.host() + ":" + String.valueOf(sender.port()));
+                        }else
+                        {
+                            loger.info("respond announce failed:" + sender.host() + ":" + String.valueOf(sender.port()));
+                        }
                     });
                 }
             });

@@ -10,9 +10,13 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.datagram.DatagramSocket;
 import io.vertx.core.datagram.DatagramSocketOptions;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 
 
 public class ServerVerticle extends AbstractVerticle {
+
+    Logger loger = LoggerFactory.getLogger(ServerVerticle.class);
     UDPTracker mUDPTracker ;
     SqliteDB mDb;
     @Override

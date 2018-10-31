@@ -5,7 +5,7 @@ package com.huoyaojing.tracker.Utils;
  * Util For IP address
  *
  */
-class IpUtils {
+public class IpUtils {
     public static long[] IPV4Array = { 0x80000000l, // 1000 0000 0000 0000 0000
             // 0000 0000 0000,//1
             0xC0000000l, // 1100 0000 0000 0000 0000 0000 0000 0000,//2
