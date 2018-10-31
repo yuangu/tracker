@@ -3,6 +3,7 @@ package com.huoyaojing.tracker.verticle;
 import com.huoyaojing.tracker.Bean.AnnounceRequestBean;
 import com.huoyaojing.tracker.Bean.ConnectRequestBean;
 import com.huoyaojing.tracker.Bean.ScrapeRequestBean;
+import com.huoyaojing.tracker.config.Config;
 import com.huoyaojing.tracker.db.SqliteDB;
 import com.huoyaojing.tracker.tracker.UDPTracker;
 import io.vertx.core.AbstractVerticle;
@@ -17,13 +18,13 @@ public class ServerVerticle extends AbstractVerticle {
     @Override
     public void start(Future<Void> startFuture) throws Exception {
         mDb = new SqliteDB(vertx);
-        mUDPTracker = new UDPTracker(mDb);
+        mUDPTracker = new UDPTracker(vertx, mDb);
         startUDPServer();
     }
 
     private void startUDPServer() {
         DatagramSocket socket = vertx.createDatagramSocket(new DatagramSocketOptions());
-        socket.listen(4848, "0.0.0.0", asyncResult -> {
+        socket.listen(Config.port, "0.0.0.0", asyncResult -> {
             if (!asyncResult.succeeded()) {
                 return;
             }

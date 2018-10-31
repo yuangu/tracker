@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AnnounceRespondBean extends BeanBase{
-    public int  interval;  //生命值
+    public int  interval = 60 * 10;  //生命值
     public int  leechers;  //正在下载
     public int  seeders;  //完成下载
 
