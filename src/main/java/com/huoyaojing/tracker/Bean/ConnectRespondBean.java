@@ -10,9 +10,10 @@ public class ConnectRespondBean  extends BeanBase{
     @Override
     public Buffer getBuff(){
         Buffer buff = Buffer.buffer();
-        buff.setBytes(buff.length(), intToByte4(action));
-        buff.setBytes(buff.length(), intToByte4(transaction_id));
-        buff.setBytes(buff.length(), longToByte8(connection_id));
+        buff.setInt(buff.length(), action);
+        buff.setInt(buff.length(), transaction_id);
+        buff.setLong(buff.length(),connection_id);
+
         return buff;
     }
 }

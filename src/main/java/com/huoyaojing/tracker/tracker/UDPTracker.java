@@ -1,9 +1,6 @@
 package com.huoyaojing.tracker.tracker;
 
-import com.huoyaojing.tracker.Bean.AnnounceRequestBean;
-import com.huoyaojing.tracker.Bean.AnnounceRespondBean;
-import com.huoyaojing.tracker.Bean.ConnectRequestBean;
-import com.huoyaojing.tracker.Bean.ConnectRespondBean;
+import com.huoyaojing.tracker.Bean.*;
 import com.huoyaojing.tracker.db.SqliteDB;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.datagram.DatagramSocket;
@@ -12,6 +9,7 @@ import io.vertx.core.net.SocketAddress;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class UDPTracker {
 
@@ -110,6 +108,47 @@ public class UDPTracker {
                 });
             });
         });
+    }
+
+    public void onScrape(DatagramSocket socket, ScrapeRequestBean requestBean, SocketAddress sender) {
+        ScrapeRespondBean respondBean = new ScrapeRespondBean();
+        if(requestBean.hashIdList.size() == 0)
+        {
+            socket.send(respondBean.getBuff(), sender.port(), sender.host(), asyncResult -> {
+                System.out.println("Send succeeded? " + asyncResult.succeeded());
+            });
+            return;
+        }
+
+        AtomicInteger total = new AtomicInteger();
+        for(int i = 0; i < requestBean.hashIdList.size(); ++i)
+        {
+            mDb.getTorrentInfo(requestBean.hashIdList.get(i), res->{
+                total.addAndGet(1);
+
+                List<JsonObject> dbRetObjectLists = res.result().getRows();
+                if(dbRetObjectLists.size() > 0)
+                {
+                    JsonObject dbRetObject = dbRetObjectLists.get(0);
+                    respondBean.completed.add (dbRetObject.getInteger("leechers"));
+                    respondBean.seeders.add (dbRetObject.getInteger("seeders"));
+                    respondBean.completed.add ( dbRetObject.getInteger("completed"));
+                }else{
+                    respondBean.completed.add (0);
+                    respondBean.seeders.add (0);
+                    respondBean.completed.add ( 0);
+                }
+
+                if(total.get() == requestBean.hashIdList.size())
+                {
+                    socket.send(respondBean.getBuff(), sender.port(), sender.host(), asyncResult -> {
+                        System.out.println("Send succeeded? " + asyncResult.succeeded());
+                    });
+                }
+            });
+        }
+
+
     }
 
     private boolean verifyConnectionId(long cId, SocketAddress address) {
