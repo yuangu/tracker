@@ -39,10 +39,12 @@ class  ServerVerticle: CoroutineVerticle(){
         {
             if(!mUDPTracker?.verifyConnectionId(connection_id, packet.sender())!!)
             {
+                loger.debug("verifyConnectionId error:" + packet.sender().host() + ":" + packet.sender().port().toString())
                 return;
             }
         }else{
             if (connection_id != 0x41727101980L) {
+                loger.debug("connect with a error connection_id :(" + connection_id.toString() + ")" + packet.sender().host() + ":" + packet.sender().port().toString())
                 return;
             }
         }
@@ -56,7 +58,7 @@ class  ServerVerticle: CoroutineVerticle(){
             }
 
             1 -> {
-                mUDPTracker?.announce(packet.data().slice(16, packet.data().length()),buff);
+                mUDPTracker?.announce(packet.data().slice(16, packet.data().length()),buff, connection_id );
             }
 
             2 -> {

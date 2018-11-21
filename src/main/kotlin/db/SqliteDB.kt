@@ -2,8 +2,8 @@ package com.huoyaojing.tracker.db
 
 import io.vertx.core.Vertx
 import io.vertx.ext.sql.ResultSet
+import io.vertx.kotlin.core.json.get
 import kotlinx.coroutines.experimental.launch
-import sun.rmi.runtime.Log
 
 import java.util.Date
 
@@ -26,12 +26,25 @@ class SqliteDB(vertx: Vertx) {
 
         mDBPoolManager.execute(sql)
 
+        sql = "delete from stats"
+        mDBPoolManager.execute(sql)
+
         sql = "CREATE TABLE IF NOT EXISTS torrents (" +
                 "info_hash text(40) UNIQUE," +
                 "created INTEGER" +
                 ")"
 
         mDBPoolManager.execute(sql)
+
+        sql = "SELECT name FROM sqlite_master"
+        var ret = mDBPoolManager.query(sql)
+        for (row in ret.rows){
+            var name:String = row["name"]
+            if(name.startsWith("t_") || name.startsWith("c_")){
+                sql = "DROP TABLE $name"
+                mDBPoolManager.execute(sql)
+            }
+        }
     }
 
     suspend fun getTorrentInfo(hashId: String) :ResultSet {
@@ -55,20 +68,47 @@ class SqliteDB(vertx: Vertx) {
         return mDBPoolManager.query(sql)
     }
 
-
     suspend fun updatePeer(peer_id: String, info_hash: String, ip: Int, port: Short, downloaded: Long, left: Long, uploaded: Long, event: Int):ResultSet {
-        addTorrent(info_hash);
+
         val sql = String.format("REPLACE INTO t_"
                 + info_hash +
                 "  (peer_id,ip,port,uploaded,downloaded,left,last_seen) VALUES ('%s',%d,%d,%d,%d,%d,%d)", peer_id, ip, port, downloaded, left, uploaded, event)
         return mDBPoolManager.query(sql)
     }
 
-    internal fun removePeer() {
-
+    suspend  fun removePeer(peer_id: String, info_hash: String)
+    {
+        val sql = "DELETE FROM t_$info_hash WHERE peer_id='$peer_id'";
+        mDBPoolManager.execute(sql)
     }
 
-    suspend private fun addTorrent(hash_id: String) {
+    suspend  fun updatePeerHash(connect_id:Long, peer_id: String, info_hash: String)
+    {
+        val sql = "CREATE TABLE IF NOT EXISTS c_$connect_id (peer_id text(40), info_hash text(40),CONSTRAINT c1 UNIQUE (peer_id,info_hash) ON CONFLICT REPLACE)"
+        mDBPoolManager.execute(sql)
+
+        val sql2 = "REPLACE INTO c_$connect_id  (peer_id,info_hash) VALUES ('$peer_id', '$info_hash')"
+        mDBPoolManager.execute(sql2)
+    }
+
+    suspend  fun getPeerHash(connect_id:Long):ResultSet {
+        val sql = "SELECT peer_id,info_hash FROM c_$connect_id "
+        return mDBPoolManager.query(sql)
+    }
+
+    suspend  fun clearPeerHash(connect_id: Long){
+        val sql = "DROP TABLE c_$connect_id"
+        mDBPoolManager.execute(sql)
+    }
+
+    suspend  fun removePeerHash(connect_id: Long, peer_id: String, info_hash: String)
+    {
+        val sql = "DELETE FROM c_$connect_id WHERE peer_id='$peer_id' and info_hash='$info_hash'";
+        mDBPoolManager.execute(sql)
+    }
+
+
+    suspend fun addTorrent(hash_id: String) {
         //ipv4
         val sql = "CREATE TABLE IF NOT EXISTS t_" +
                 hash_id +
