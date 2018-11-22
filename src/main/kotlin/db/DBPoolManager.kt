@@ -8,7 +8,6 @@ import io.vertx.ext.sql.ResultSet
 import io.vertx.ext.sql.SQLConnection
 import io.vertx.kotlin.coroutines.awaitResult
 
-
 class DBPoolManager internal constructor(vertx: Vertx) {
     val loger = LoggerFactory.getLogger(DBPoolManager::class.java!!)
 
@@ -22,32 +21,34 @@ class DBPoolManager internal constructor(vertx: Vertx) {
     }
 
     suspend fun execute(sql: String) {
-        loger.info("run sql:" + sql);
-        try {
-            var connect = awaitResult<SQLConnection>{
-                client.getConnection(it);
-            }
+        var connect = awaitResult<SQLConnection>{
+            client.getConnection(it);
+        }
 
+        try {
             awaitResult<Void>{connect.execute(sql, it);}
-            connect.close {  }
         }catch (e:Exception){
             loger.error("run sql:(" + sql + ")  error:" + e.toString())
         }
-
+        awaitResult<Void>{connect.close(it)}
     }
 
-    suspend  fun query(sql: String):ResultSet {
-        loger.info("run sql:" + sql);
+    suspend  fun query(sql: String): ResultSet {
+        var connect = awaitResult<SQLConnection>{
+            client.getConnection(it);
+        }
+        var ret: ResultSet? = null;
         try {
-            var connect = awaitResult<SQLConnection>{
-                client.getConnection(it);
-            }
-            var ret = awaitResult<ResultSet>{connect.query(sql, it);};
-            connect.close {  }
-            return ret;
+            ret = awaitResult<ResultSet>{connect.query(sql, it);}
         }catch (e:Exception){
+
             loger.error("run sql:(" + sql + ")  error:" + e.toString())
         }
-        return ResultSet();
+        awaitResult<Void>{connect.close(it)}
+        if(ret == null)
+        {
+            ret = ResultSet()
+        }
+        return ret!!;
     }
 }
